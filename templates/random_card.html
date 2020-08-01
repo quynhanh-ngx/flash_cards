@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        .hidden{
+            display: none;
+        }
+    </style>
+</head>
+<body>
+        <div id="card-front">{{front}}</div>
+        <div id="card-back" class="hidden">{{back}}</div>
+        <button id="card-flip-button" onclick="function flipCard() {
+            let cardFront = document.getElementById('card-front');
+            let cardBack = document.getElementById('card-back');
+            cardFront.classList.toggle('hidden');
+            cardBack.classList.toggle('hidden');
+
+        }
+        flipCard()">Flip</button>
+</body>
+</html>
