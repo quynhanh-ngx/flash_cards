@@ -21,5 +21,6 @@ from flash_card_app import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    url('', views.random_card)
+    url('attempt/$', views.CreateAttempt.as_view()),
+    url('$', views.random_card)
 ]

@@ -4,21 +4,205 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <style>
-        .hidden{
+        .hidden {
             display: none;
         }
-    </style>
-</head>
-<body>
-        <div id="card-front">{{front}}</div>
-        <div id="card-back" class="hidden">{{back}}</div>
-        <button id="card-flip-button" onclick="function flipCard() {
-            let cardFront = document.getElementById('card-front');
-            let cardBack = document.getElementById('card-back');
-            cardFront.classList.toggle('hidden');
-            cardBack.classList.toggle('hidden');
+
+        body {
+            background-color: #ABD6F3;
+            font-size: 20px;
+        }
+
+        h1 {
+            padding: 0;
+            margin: 0;
+        }
+
+        p {
+            padding: 0;
+            margin-top: 1.3em;
+            line-height: 1.4;
+        }
+
+        /* entire container, keeps perspective */
+
+        .page {
+            width: 100%;
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+        }
+
+        .card-control, .flip-container {
+            margin: 0 auto;
+            perspective: 1000px;
+        }
+
+        /* flip the pane when hovered */
+        .flip-container:active .flipper, .flip-container.hover .flipper {
+            transform: rotateY(180deg);
+        }
+
+        .card-control, .flip-container, .front, .back {
+            width: 480px;
+            height: 288px;
+        }
+
+        /* flip speed goes here */
+        .flipper {
+            transition: 0.6s;
+            transform-style: preserve-3d;
+            position: relative;
+        }
+
+        /* hide back of pane during swap */
+        .front, .back {
+            backface-visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
 
         }
-        flipCard()">Flip</button>
+
+        /* front pane, placed above back */
+        .front {
+            z-index: 2;
+            transform: rotateY(0deg);
+            background-color: #fff;
+            box-shadow: 1px 1px 5px #333;
+            background: linear-gradient(to bottom,
+            white 0, white 20%,
+            lightblue 0, lightblue 21.2%,
+            white 0, white 30%,
+            pink 0, pink 30.3%,
+            white 0, white 40%,
+            pink 0, pink 40.3%,
+            white 0, white 50%,
+            pink 0, pink 50.3%,
+            white 0, white 60%,
+            pink 0, pink 60.3%,
+            white 0, white 70%,
+            pink 0, pink 70.3%,
+            white 0, white 80%,
+            pink 0, pink 80.3%,
+            white 0, white 90%,
+            pink 0, pink 90.3%,
+            white 0
+            );
+        }
+
+        /* back, initially hidden pane */
+        .back {
+            transform: rotateY(180deg);
+            background-color: #fefefe;
+            box-shadow: 1px 1px 5px #333;
+        }
+
+        .content {
+            padding: 1em;
+        }
+
+
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+<div class="page">
+    <div class="flip-container" onclick="this.classList.toggle('hover');
+    document.getElementById('inner-card-control').classList.remove('hidden');">
+        <div class="flipper">
+            <div class="front">
+                <div class="content">
+                    <h1>Question:</h1>
+                    <p>{{ card.front_card_text }}</p>
+                </div>
+            </div>
+            <div class="back">
+                <div class="content">
+                    <h1>Answer:</h1>
+                    <p>{{ card.back_card_text }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-control">
+        <div class="hidden" id="inner-card-control">
+            <div id="confirm">
+                Got it????
+                <button onclick="attempt({{ card.pk }},true)">Yes</button>
+                <button onclick="attempt({{ card.pk }},false)">No</button>
+            </div>
+            <div id="attempt-response"></div>
+            <div id="previous-attempt-list">
+                <ul>
+                    {% for attempt in last_four %}
+                        <li>{{ attempt.is_correct }} - {{ attempt.published_at }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <button id="next-button" onclick="location.reload()" class="hidden">Next</button>
+        </div>
+    </div>
+</div>
+{#<div id="card-front" class="card">{{ card.front_card_text }}</div>#}
+{#<div id="card-back" class="hidden card">{{ card.back_card_text }}</div>#}
+
+<script>
+    // Get csrf token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const csrftoken = getCookie('csrftoken');
+
+    function csrfSafeMethod(method) {
+        // these HTTP methods do not require CSRF protection
+        return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+    }
+
+    $.ajaxSetup({
+        beforeSend: function (xhr, settings) {
+            if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
+        }
+    });
+
+    let correctAttempts = {{ correct_count }};
+    let totalAttempts = {{ attempt_count }};
+
+    // Attempt
+    function attempt(flash_card_id, is_correct) {
+        $.ajax({
+            type: "POST",
+            url: "/attempt/",
+            data: {
+                is_correct: is_correct,
+                flash_card_id: flash_card_id
+            },
+        }).then(
+            () => {
+                totalAttempts += 1;
+                correctAttempts += is_correct ? 1 : 0;
+                $('#confirm').remove();
+                $('#attempt-response').text((is_correct ? "Good job" : "Try again next time") + correctAttempts + '/' + totalAttempts);
+                $('#next-button').show();
+            }
+        );
+    }
+</script>
 </body>
 </html>
